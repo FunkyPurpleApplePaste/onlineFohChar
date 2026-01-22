@@ -1,4 +1,9 @@
 const express = require('express');
+const mysql = require('mysql2/promise');
+require('dotenv').config();
+
+const port = process.env.PORT || 3000;
+
 const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
@@ -10,16 +15,14 @@ const dbConfig = {
     queueLimit: 0,
 };
 
-
 const app = express();
-app.use(cors());
 app.use(express.json());
 
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+});
 
-app.listen(port, () => console.log(`Server running on port ${port}`));
-
-
-// GET /characters
+// Get all characters
 app.get('/characters', async (req, res) => {
     try {
         const connection = await mysql.createConnection(dbConfig);
@@ -28,17 +31,19 @@ app.get('/characters', async (req, res) => {
         res.json(rows);
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Server error while fetching characters' });
+        res.status(500).json({ message: 'Server error while fetching all characters' });
     }
 });
 
-
-// POST /characters
+// Add a character
 app.post('/characters', async (req, res) => {
-    const { charname, charstar = 0, charpic } = req.body;
+    const { charname, charstar, charpic } = req.body;
     try {
         const connection = await mysql.createConnection(dbConfig);
-        await connection.execute('INSERT INTO fohchar (charname, charstar, charpic) VALUES (?, ?, ?)', [charname, charstar, charpic]);
+        await connection.execute(
+            'INSERT INTO fohchar (charname, charstar, charpic) VALUES (?, ?, ?)',
+            [charname, charstar, charpic]
+        );
         await connection.end();
         res.status(201).json({ message: `Character '${charname}' added successfully.` });
     } catch (err) {
@@ -47,16 +52,22 @@ app.post('/characters', async (req, res) => {
     }
 });
 
-
-// PUT /characters/:id
+// Update a character
 app.put('/characters/:id', async (req, res) => {
     const { id } = req.params;
-    const { charname, charstar = 0, charpic } = req.body;
+    const { charname, charstar, charpic } = req.body;
     try {
         const connection = await mysql.createConnection(dbConfig);
-        const [result] = await connection.execute('UPDATE fohchar SET charname = ?, charstar = ?, charpic = ? WHERE id = ?', [charname, charstar, charpic, id]);
+        const [result] = await connection.execute(
+            'UPDATE fohchar SET charname = ?, charstar = ?, charpic = ? WHERE id = ?',
+            [charname, charstar, charpic, id]
+        );
         await connection.end();
-        if (result.affectedRows === 0) return res.status(404).json({ message: `No character found with id ${id}` });
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: `No character found with id ${id}` });
+        }
+
         res.json({ message: `Character with id ${id} updated successfully.` });
     } catch (err) {
         console.error(err);
@@ -64,15 +75,18 @@ app.put('/characters/:id', async (req, res) => {
     }
 });
 
-
-// DELETE /characters/:id
+// Delete a character
 app.delete('/characters/:id', async (req, res) => {
     const { id } = req.params;
     try {
         const connection = await mysql.createConnection(dbConfig);
         const [result] = await connection.execute('DELETE FROM fohchar WHERE id = ?', [id]);
         await connection.end();
-        if (result.affectedRows === 0) return res.status(404).json({ message: `No character found with id ${id}` });
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: `No character found with id ${id}` });
+        }
+
         res.json({ message: `Character with id ${id} deleted successfully.` });
     } catch (err) {
         console.error(err);
